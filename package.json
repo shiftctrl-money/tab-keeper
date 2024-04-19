@@ -1,0 +1,17 @@
+{
+  "name": "tab-keeper",
+  "version": "1.0.0",
+  "description": "shiftCTRL Tab Protocol Keeper module",
+  "main": "app.js",
+  "scripts": {
+    "local": "node --env-file=./.env.local src/app.js",
+    "start": "node --env-file=/run/secrets/.env src/app.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ethers": "^5.5.3",
+    "log-timestamp": "^0.3.0",
+    "node-cron": "^3.0.3"
+  }
+}
