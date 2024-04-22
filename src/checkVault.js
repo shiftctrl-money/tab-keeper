@@ -57,9 +57,9 @@ const checkVaultJob = async function(BC_NODE_URL, BC_KEEPER_PRIVATE_KEY, BC_VAUL
                 
                 // returns:
                     // bytes3 tab,
-                    // bytes32 collKey,
+                    // bytes32 reserveKey,
                     // uint256 price,
-                    // uint256 collateralAmt,
+                    // uint256 reserveAmt,
                     // uint256 osTab,
                     // uint256 reserveValue,
                     // uint256 minReserveValue
@@ -73,17 +73,17 @@ const checkVaultJob = async function(BC_NODE_URL, BC_KEEPER_PRIVATE_KEY, BC_VAUL
                 }
                 if (frozenTabs[strTab] == 0) { // proceed checking only if vault tab is not frozen by protocol
                     let tab = det[0];
-                    let collKey = det[1];
+                    let reserveKey = det[1];
                     let price = BigNumber.from(det[2]);
-                    let collateralAmt = BigNumber.from(det[3]);
+                    let reserveAmt = BigNumber.from(det[3]);
                     let osTab = BigNumber.from(det[4]);
                     let reserveValue = BigNumber.from(det[5]);
                     let minReserveValue = BigNumber.from(det[6]);
                     let delta = minReserveValue.sub(reserveValue);
                     console.log('tab: ' + strTab);
-                    console.log('collKey: ' + collKey);
+                    console.log('reserveKey: ' + reserveKey);
                     console.log('price: ' + price);
-                    console.log('collateralAmt: '+ collateralAmt);
+                    console.log('reserveAmt: '+ reserveAmt);
                     console.log('osTab: ' + osTab);
                     console.log('reserveValue: ' + reserveValue);
                     console.log('minReserveValue: ' + minReserveValue);
@@ -99,7 +99,7 @@ const checkVaultJob = async function(BC_NODE_URL, BC_KEEPER_PRIVATE_KEY, BC_VAUL
                                 addr,
                                 id,
                                 tab,
-                                collKey,
+                                reserveKey,
                                 osTab,
                                 reserveValue,
                                 minReserveValue

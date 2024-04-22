@@ -95,4 +95,4 @@ Project Link: [https://shiftctrl.money](https://shiftctrl.money) - contact@shift
 
 Twitter [@shiftCTRL_money](https://twitter.com/shiftCTRL_money) 
 
-Discord [shiftctrl_money](https://discord.gg/26fb3cTQ)
+Discord [shiftctrl_money](https://discord.gg/7w6JhTNt9K)
