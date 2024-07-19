@@ -64,6 +64,15 @@ function calcReserveValue(price, reserveAmt) {
     return  (price * reserveAmt) / ethers.parseEther("1");
 }
 
+async function getChainTimestamp(prov) {
+    let blockNum = await prov.getBlockNumber();
+    let block = await prov.getBlock(blockNum);
+    if (block)
+        return block.timestamp;
+    else
+        return 0;
+}
+
 const checkVaultJob = async function(
     BC_NODE_URL, 
     BC_KEEPER_PRIVATE_KEY, 
@@ -190,8 +199,10 @@ const checkVaultJob = async function(
                             continue;
                         }
                         let signed = sig.data.quotes[pairName].signed;
+                        let blockTimestamp = await getChainTimestamp(provider);
+                        console.log('blockTimestamp: '+blockTimestamp);
                         const data = vaultKeeperContract.interface.encodeFunctionData('checkVault', [
-                            now,
+                            blockTimestamp,
                             [
                                 addr,
                                 id,

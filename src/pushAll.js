@@ -1,5 +1,14 @@
 const ethers = require('ethers');
 
+async function getChainTimestamp(prov) {
+    let blockNum = await prov.getBlockNumber();
+    let block = await prov.getBlock(blockNum);
+    if (block)
+        return block.timestamp;
+    else
+        return 0;
+}
+
 const pushAllVaultRiskPenaltyJob = async function(BC_NODE_URL, BC_KEEPER_PRIVATE_KEY, BC_VAULT_KEEPER_CONTRACT) {
     console.log("pushAllVaultRiskPenaltyJob is started...");
     console.log("BC_NODE_URL: "+BC_NODE_URL+"  BC_VAULT_KEEPER_CONTRACT: "+BC_VAULT_KEEPER_CONTRACT);
@@ -18,10 +27,10 @@ const pushAllVaultRiskPenaltyJob = async function(BC_NODE_URL, BC_KEEPER_PRIVATE
             signer
         );
         
+        let current = await getChainTimestamp(provider);
+        console.log("Chain timestamp: "+current+" to call pushAllVaultRiskPenalty...");
         const isExpiredRiskPenaltyCheck = await vaultKeeperContract.isExpiredRiskPenaltyCheck();
-        if (isExpiredRiskPenaltyCheck) {
-            let current = BigInt(Math.floor(Date.now() / 1000));
-            console.log("Local timestamp: "+current+" to call pushAllVaultRiskPenalty...");
+        if (isExpiredRiskPenaltyCheck) {    
             let data = vaultKeeperContract.interface.encodeFunctionData('pushAllVaultRiskPenalty', [current]);
             let transaction = {
                 to: BC_VAULT_KEEPER_CONTRACT,
