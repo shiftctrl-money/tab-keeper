@@ -120,7 +120,8 @@ const checkVaultJob = async function(
         );
 
         const vaultKeeperContractABI = [
-            'function checkVault(uint256,(address,uint256,bytes3,bytes32,uint256,uint256,uint256),(address,address,bytes3,uint256,uint256,uint8,bytes32,bytes32)) external'
+            'function checkVault(uint256,(address,uint256,bytes3,bytes32,uint256,uint256,uint256),(address,address,bytes3,uint256,uint256,uint8,bytes32,bytes32)) external',
+            'function largestVaultDelta(address,uint256) external view returns(uint256)'
         ];
         const vaultKeeperContract = new ethers.Contract(
             BC_VAULT_KEEPER_CONTRACT,
@@ -190,52 +191,58 @@ const checkVaultJob = async function(
                     console.log('reserveValue: ' + reserveValue);
                     console.log('minReserveValue: ' + minReserveValue);
                     console.log('delta: ' + delta + ' proceed checkValue? ' + (delta > 0) );
-
+                    
                     if (delta > 0) { // delta value existed, call on-chain function 
-                        let sig = await getSignedRate(TAB_ORACLE, signer.address, strTab);
-                        if (sig.error) {
-                            console.error("Failed to retrieve price rate signature on "+strTab);
-                            console.error(sig.error);
-                            continue;
-                        }
-                        let signed = sig.data.quotes[pairName].signed;
-                        let blockTimestamp = await getChainTimestamp(provider);
-                        console.log('blockTimestamp: '+blockTimestamp);
-                        const data = vaultKeeperContract.interface.encodeFunctionData('checkVault', [
-                            blockTimestamp,
-                            [
-                                addr,
-                                id,
-                                tab,
-                                reserveKey,
-                                osTab,
-                                reserveValue,
-                                minReserveValue
-                            ],
-                            [
-                                signed.owner,
-                                signed.updater,
-                                signed.tab,
-                                signed.price,
-                                signed.timestamp,
-                                signed.v,
-                                signed.r,
-                                signed.s
-                            ]
-                        ]);
-                        const transaction = {
-                            to: BC_VAULT_KEEPER_CONTRACT,
-                            data: data,
-                            // gasPrice: ethers.utils.parseUnits('50', 'gwei'),
-                            gasLimit: 10000000
-                        };
-                        try {
-                            const tx = await signer.sendTransaction(transaction);
-                            console.log("Triggered checkVault() on vault id: " + id + ' trx hash: '+tx.hash);
-                            const receipt = await tx.wait();
-                            console.log("checkVault receipt: ", receipt);
-                        } catch (error) {
-                            console.error('Exception: ', error);
+                        // compare with on-chain largest delta (if any), if current delta is larger, submit it
+                        let onChainLargestDelta = await vaultKeeperContract.largestVaultDelta(addr, id);
+                        console.log('onChainLargestDelta: '+onChainLargestDelta);    
+
+                        if (onChainLargestDelta && delta > onChainLargestDelta) {
+                            let sig = await getSignedRate(TAB_ORACLE, signer.address, strTab);
+                            if (sig.error) {
+                                console.error("Failed to retrieve price rate signature on "+strTab);
+                                console.error(sig.error);
+                                continue;
+                            }
+                            let signed = sig.data.quotes[pairName].signed;
+                            let blockTimestamp = await getChainTimestamp(provider);
+                            console.log('blockTimestamp: '+blockTimestamp);
+                            const data = vaultKeeperContract.interface.encodeFunctionData('checkVault', [
+                                blockTimestamp,
+                                [
+                                    addr,
+                                    id,
+                                    tab,
+                                    reserveKey,
+                                    osTab,
+                                    reserveValue,
+                                    minReserveValue
+                                ],
+                                [
+                                    signed.owner,
+                                    signed.updater,
+                                    signed.tab,
+                                    signed.price,
+                                    signed.timestamp,
+                                    signed.v,
+                                    signed.r,
+                                    signed.s
+                                ]
+                            ]);
+                            const transaction = {
+                                to: BC_VAULT_KEEPER_CONTRACT,
+                                data: data,
+                                // gasPrice: ethers.utils.parseUnits('50', 'gwei'),
+                                gasLimit: 10000000
+                            };
+                            try {
+                                const tx = await signer.sendTransaction(transaction);
+                                console.log("Triggered checkVault() on vault id: " + id + ' trx hash: '+tx.hash);
+                                const receipt = await tx.wait();
+                                console.log("checkVault receipt: ", receipt);
+                            } catch (error) {
+                                console.error('Exception: ', error);
+                            }
                         }
                     }
                 } else {
