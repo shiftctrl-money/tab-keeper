@@ -23,8 +23,8 @@ if (NODE_ENV == 'local') {
     });
     
 } else {
-    // run on every 6 hours 2 minutes
-    cron.schedule('2 */6 * * *', () => {
+    // run on every 1 hour 2 minutes
+    cron.schedule('2 * * * *', () => {
         pushAllVaultRiskPenaltyJob(BC_NODE_URL, BC_KEEPER_PRIVATE_KEY, BC_VAULT_KEEPER_CONTRACT);
     });
 

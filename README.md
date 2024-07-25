@@ -9,14 +9,12 @@ As part of the `checkVault` process, if the vault's reserve ratio fall below liq
 
 An on-chain Dutch auction is started to recover outstanding Tabs and vault is closed, with remaining reserves claimable by vault owner (if any).
 
-![overview](https://lh3.googleusercontent.com/drive-viewer/AKGpihZ6COG8RFCvMdFgMbikNKBOVbYUkyuZjjMgN6ujTe3pDgyjpTDMg3fYHkN_83bjk4Lo-2I7bQWKYAeE-9ieuO4OdGDXQvAh3Q=s2560)
-
 
 ## Sub-modules
 | Name    | Description | Scheduler |
 | ------- | ----------- | --------- |
 | Check vault job | Check on each active vaults on-chain and call its `checkVault` function if it is underperformed | Run on every 6 minutes |
-| Push all risk penalties job | Flush all cached risk penalty and update vault's outstanding tab amount on-chain | Run on every 6 hours and 2 minutes |
+| Push all risk penalties job | Flush all cached risk penalty and update vault's outstanding tab amount on-chain | Run on every hour and 2 minutes |
 
 ## Getting Started
 
