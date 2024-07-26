@@ -197,7 +197,7 @@ const checkVaultJob = async function(
                         let onChainLargestDelta = await vaultKeeperContract.largestVaultDelta(addr, id);
                         console.log('onChainLargestDelta: '+onChainLargestDelta);    
 
-                        if (onChainLargestDelta && delta > onChainLargestDelta) {
+                        if (delta > onChainLargestDelta) {
                             let sig = await getSignedRate(TAB_ORACLE, signer.address, strTab);
                             if (sig.error) {
                                 console.error("Failed to retrieve price rate signature on "+strTab);
