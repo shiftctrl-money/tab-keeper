@@ -192,7 +192,7 @@ const checkVaultJob = async function(
                     console.log('minReserveValue: ' + minReserveValue);
                     console.log('delta: ' + delta + ' proceed checkValue? ' + (delta > 0) );
                     
-                    if (delta > 0) { // delta value existed, call on-chain function 
+                    if (delta > 0 && reserveAmt > 0 && osTab > 0) { // delta value existed, call on-chain function 
                         // compare with on-chain largest delta (if any), if current delta is larger, submit it
                         let onChainLargestDelta = await vaultKeeperContract.largestVaultDelta(addr, id);
                         console.log('onChainLargestDelta: '+onChainLargestDelta);    
