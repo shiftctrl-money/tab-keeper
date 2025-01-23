@@ -102,25 +102,25 @@ const checkVaultJob = async function(
         );
 
         const vaultUtilsContractABI = [
-            'function getVaultDetails(address,uint256,uint256) external view returns(bytes3,bytes32,uint256,uint256,uint256,uint256,uint256)'
+            'function getVaultDetails(address,uint256,uint256) external view returns(bytes3,address,uint256,uint256,uint256,uint256,uint256)'
         ];
         const vaultUtilsContract = new ethers.Contract(
             BC_VAULT_UTILS_CONTRACT,
             vaultUtilsContractABI,
             signer
         );
-
+/*
         const tabRegistryContractABI = [
-            'function frozenTabs(bytes3) external view returns(bool)'
+            'function frozenTabs(bytes32) external view returns(bool)'
         ];
         const tabRegistryContract = new ethers.Contract(
             BC_TAB_REGISTRY_CONTRACT,
             tabRegistryContractABI,
             signer
         );
-
+*/
         const vaultKeeperContractABI = [
-            'function checkVault(uint256,(address,uint256,bytes3,bytes32,uint256,uint256,uint256),(address,address,bytes3,uint256,uint256,uint8,bytes32,bytes32)) external',
+            'function checkVault(uint256,(address,uint256,bytes3,address,uint256,uint256,uint256),(address,address,bytes3,uint256,uint256,uint8,bytes32,bytes32)) external',
             'function largestVaultDelta(address,uint256) external view returns(uint256)'
         ];
         const vaultKeeperContract = new ethers.Contract(
@@ -152,7 +152,7 @@ const checkVaultJob = async function(
                 
                 // returns:
                     // bytes3 tab,
-                    // bytes32 reserveKey,
+                    // address reserveAddr,
                     // uint256 price,
                     // uint256 reserveAmt,
                     // uint256 osTab,
@@ -176,7 +176,7 @@ const checkVaultJob = async function(
 
                 if (rates.data.quotes[pairName].tab.frozen == false) { // proceed checking only if vault tab is not frozen by protocol
                     let tab = det[0];
-                    let reserveKey = det[1];
+                    let reserveAddr = det[1];
                     let price = BigInt(medianPriceRate.median);
                     let reserveAmt = BigInt(det[3]);
                     let osTab = BigInt(det[4]);
@@ -184,7 +184,7 @@ const checkVaultJob = async function(
                     let minReserveValue = BigInt(det[6]);
                     let delta = minReserveValue - reserveValue;
                     console.log('tab: ' + strTab);
-                    console.log('reserveKey: ' + reserveKey);
+                    console.log('reserveAddr: ' + reserveAddr);
                     console.log('price: ' + price);
                     console.log('reserveAmt: '+ reserveAmt);
                     console.log('osTab: ' + osTab);
@@ -213,7 +213,7 @@ const checkVaultJob = async function(
                                     addr,
                                     id,
                                     tab,
-                                    reserveKey,
+                                    reserveAddr,
                                     osTab,
                                     reserveValue,
                                     minReserveValue
