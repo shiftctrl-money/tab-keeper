@@ -1,6 +1,8 @@
 const ethers = require('ethers');
 const axios = require('axios');
 
+const PRECISION = BigInt('10000000000000000000000000000'); // 10^27
+
 async function getMedianRates(TAB_ORACLE) {
     try {
         console.log("ready to retrieve median rates...");
@@ -29,9 +31,9 @@ async function getMedianRates(TAB_ORACLE) {
     }
 }
 
-async function getSignedRate(TAB_ORACLE, pubAddr, tabCode) {
+async function getSignedRate(TAB_ORACLE, pubAddr, tabCode, reserveSymbol) {
     try {
-        let sendUrl = (TAB_ORACLE.TAB_ORACLE_NODE_URL + TAB_ORACLE.TAB_ORACLE_MEDIAN_SIG_ENDPOINT)
+        let sendUrl = (TAB_ORACLE.TAB_ORACLE_NODE_URL + TAB_ORACLE.TAB_ORACLE_MEDIAN_SIG_ENDPOINT + '?reserveSymbol=' + reserveSymbol)
                         .replaceAll('[USER_PUB]', pubAddr)
                         .replaceAll('[TAB_CODE]', tabCode);
         console.log("ready to retrieve signed rate from: "+sendUrl);
@@ -64,6 +66,23 @@ function calcReserveValue(price, reserveAmt) {
     return  (price * reserveAmt) / ethers.parseEther("1");
 }
 
+function getReserveSymbol(WRAPPED_BTC_RESERVES, reserveAddr) {
+    let arr = WRAPPED_BTC_RESERVES.split(',');
+    for(let i=0; i < arr.length; i++) {
+        let reserve = arr[i].split(':');
+        if (reserve[0] == reserveAddr)
+            return reserve[1];
+    }
+    return '';
+}
+
+// To calc. Wrapped BTC Token to Fiat rate
+function getAdjustedWrappedBTCTokenPrice(wrappedToUsd, btcToUsd, btcToFiat) {
+    if (btcToUsd == btcToFiat)
+        return wrappedToUsd;
+    return (BigInt(wrappedToUsd) * PRECISION / BigInt(btcToUsd) * BigInt(btcToFiat) / PRECISION).toString();
+}
+
 async function getChainTimestamp(prov) {
     let blockNum = await prov.getBlockNumber();
     let block = await prov.getBlock(blockNum);
@@ -80,7 +99,8 @@ const checkVaultJob = async function(
     BC_VAULT_UTILS_CONTRACT, 
     BC_TAB_REGISTRY_CONTRACT, 
     BC_VAULT_KEEPER_CONTRACT,
-    TAB_ORACLE
+    TAB_ORACLE,
+    WRAPPED_BTC_RESERVES
 ) {
     console.log("checkVaultJob is started...");
     console.log("BC_NODE_URL: "+BC_NODE_URL+"  BC_VAULT_KEEPER_CONTRACT: "+BC_VAULT_KEEPER_CONTRACT);
@@ -177,7 +197,17 @@ const checkVaultJob = async function(
                 if (rates.data.quotes[pairName].tab.frozen == false) { // proceed checking only if vault tab is not frozen by protocol
                     let tab = det[0];
                     let reserveAddr = det[1];
-                    let price = BigInt(medianPriceRate.median);
+                    let reserveSymbol = getReserveSymbol(WRAPPED_BTC_RESERVES, reserveAddr);
+                    let price;
+                    if (reserveSymbol) {
+                        price = BigInt(getAdjustedWrappedBTCTokenPrice(
+                            rates.data.wrapped_BTC_tokens[reserveSymbol].median, 
+                            rates.data.quotes['BTCUSD'].median, 
+                            medianPriceRate.median
+                        ));
+                    }
+                    else
+                        price = BigInt(medianPriceRate.median);
                     let reserveAmt = BigInt(det[3]);
                     let osTab = BigInt(det[4]);
                     let reserveValue = calcReserveValue(price, reserveAmt);
@@ -198,7 +228,7 @@ const checkVaultJob = async function(
                         console.log('onChainLargestDelta: '+onChainLargestDelta);    
 
                         if (delta > onChainLargestDelta) {
-                            let sig = await getSignedRate(TAB_ORACLE, signer.address, strTab);
+                            let sig = await getSignedRate(TAB_ORACLE, addr, strTab, reserveSymbol);
                             if (sig.error) {
                                 console.error("Failed to retrieve price rate signature on "+strTab);
                                 console.error(sig.error);
@@ -207,6 +237,7 @@ const checkVaultJob = async function(
                             let signed = sig.data.quotes[pairName].signed;
                             let blockTimestamp = await getChainTimestamp(provider);
                             console.log('blockTimestamp: '+blockTimestamp);
+
                             const data = vaultKeeperContract.interface.encodeFunctionData('checkVault', [
                                 blockTimestamp,
                                 [
