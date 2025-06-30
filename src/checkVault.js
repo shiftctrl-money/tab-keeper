@@ -31,9 +31,10 @@ async function getMedianRates(TAB_ORACLE) {
     }
 }
 
-async function getSignedRate(TAB_ORACLE, pubAddr, tabCode, reserveSymbol) {
+async function getSignedRate(TAB_ORACLE, pubAddr, tabCode, reserveSymbol, reserveAddr) {
     try {
-        let sendUrl = (TAB_ORACLE.TAB_ORACLE_NODE_URL + TAB_ORACLE.TAB_ORACLE_MEDIAN_SIG_ENDPOINT + '?reserveSymbol=' + reserveSymbol)
+        let sendUrl = (TAB_ORACLE.TAB_ORACLE_NODE_URL + TAB_ORACLE.TAB_ORACLE_MEDIAN_SIG_ENDPOINT + 
+                        '?reserveSymbol=' + reserveSymbol + '&reserveAddr=' + reserveAddr)
                         .replaceAll('[USER_PUB]', pubAddr)
                         .replaceAll('[TAB_CODE]', tabCode);
         console.log("ready to retrieve signed rate from: "+sendUrl);
@@ -140,7 +141,7 @@ const checkVaultJob = async function(
         );
 */
         const vaultKeeperContractABI = [
-            'function checkVault(uint256,(address,uint256,bytes3,address,uint256,uint256,uint256),(address,address,bytes3,uint256,uint256,uint8,bytes32,bytes32)) external',
+            'function checkVault(uint256,(address,uint256,bytes3,address,uint256,uint256,uint256),(uint256,uint256,address,address,address,bytes3,uint8,bytes32,bytes32)) external',
             'function largestVaultDelta(address,uint256) external view returns(uint256)'
         ];
         const vaultKeeperContract = new ethers.Contract(
@@ -228,7 +229,7 @@ const checkVaultJob = async function(
                         console.log('onChainLargestDelta: '+onChainLargestDelta);    
 
                         if (delta > onChainLargestDelta) {
-                            let sig = await getSignedRate(TAB_ORACLE, addr, strTab, reserveSymbol);
+                            let sig = await getSignedRate(TAB_ORACLE, addr, strTab, reserveSymbol, reserveAddr);
                             if (sig.error) {
                                 console.error("Failed to retrieve price rate signature on "+strTab);
                                 console.error(sig.error);
@@ -250,11 +251,12 @@ const checkVaultJob = async function(
                                     minReserveValue
                                 ],
                                 [
-                                    signed.owner,
-                                    signed.updater,
-                                    signed.tab,
                                     signed.price,
                                     signed.timestamp,
+                                    signed.owner,
+                                    signed.updater,
+                                    signed.reserve,
+                                    signed.tab,
                                     signed.v,
                                     signed.r,
                                     signed.s
