@@ -7,8 +7,7 @@ const {
     BC_TAB_REGISTRY_CONTRACT, 
     BC_VAULT_KEEPER_CONTRACT,
     BC_VAULT_UTILS_CONTRACT, 
-    TAB_ORACLE,
-    WRAPPED_BTC_RESERVES
+    TAB_ORACLE
 } = require('./config');
 const { checkVaultJob } = require('./checkVault');
 const { pushAllVaultRiskPenaltyJob } = require('./pushAll');
@@ -27,8 +26,7 @@ if (NODE_ENV == 'local') {
             BC_VAULT_UTILS_CONTRACT, 
             BC_TAB_REGISTRY_CONTRACT, 
             BC_VAULT_KEEPER_CONTRACT, 
-            TAB_ORACLE, 
-            WRAPPED_BTC_RESERVES
+            TAB_ORACLE
         );
     // });
     
@@ -47,8 +45,7 @@ if (NODE_ENV == 'local') {
             BC_VAULT_UTILS_CONTRACT, 
             BC_TAB_REGISTRY_CONTRACT, 
             BC_VAULT_KEEPER_CONTRACT, 
-            TAB_ORACLE, 
-            WRAPPED_BTC_RESERVES
+            TAB_ORACLE
         );
     });
 }

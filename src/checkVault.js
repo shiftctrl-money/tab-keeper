@@ -31,10 +31,10 @@ async function getMedianRates(TAB_ORACLE) {
     }
 }
 
-async function getSignedRate(TAB_ORACLE, pubAddr, tabCode, reserveSymbol, reserveAddr) {
+async function getSignedRate(TAB_ORACLE, pubAddr, tabCode, userChainId) {
     try {
         let sendUrl = (TAB_ORACLE.TAB_ORACLE_NODE_URL + TAB_ORACLE.TAB_ORACLE_MEDIAN_SIG_ENDPOINT + 
-                        '?reserveSymbol=' + reserveSymbol + '&reserveAddr=' + reserveAddr)
+                        '?userChainId=' + userChainId)
                         .replaceAll('[USER_PUB]', pubAddr)
                         .replaceAll('[TAB_CODE]', tabCode);
         console.log("ready to retrieve signed rate from: "+sendUrl);
@@ -67,23 +67,6 @@ function calcReserveValue(price, reserveAmt) {
     return  (price * reserveAmt) / ethers.parseEther("1");
 }
 
-function getReserveSymbol(WRAPPED_BTC_RESERVES, reserveAddr) {
-    let arr = WRAPPED_BTC_RESERVES.split(',');
-    for(let i=0; i < arr.length; i++) {
-        let reserve = arr[i].split(':');
-        if (reserve[0] == reserveAddr)
-            return reserve[1];
-    }
-    return '';
-}
-
-// To calc. Wrapped BTC Token to Fiat rate
-function getAdjustedWrappedBTCTokenPrice(wrappedToUsd, btcToUsd, btcToFiat) {
-    if (btcToUsd == btcToFiat)
-        return wrappedToUsd;
-    return (BigInt(wrappedToUsd) * PRECISION / BigInt(btcToUsd) * BigInt(btcToFiat) / PRECISION).toString();
-}
-
 async function getChainTimestamp(prov) {
     let blockNum = await prov.getBlockNumber();
     let block = await prov.getBlock(blockNum);
@@ -100,8 +83,7 @@ const checkVaultJob = async function(
     BC_VAULT_UTILS_CONTRACT, 
     BC_TAB_REGISTRY_CONTRACT, 
     BC_VAULT_KEEPER_CONTRACT,
-    TAB_ORACLE,
-    WRAPPED_BTC_RESERVES
+    TAB_ORACLE
 ) {
     console.log("checkVaultJob is started...");
     console.log("BC_NODE_URL: "+BC_NODE_URL+"  BC_VAULT_KEEPER_CONTRACT: "+BC_VAULT_KEEPER_CONTRACT);
@@ -123,25 +105,27 @@ const checkVaultJob = async function(
         );
 
         const vaultUtilsContractABI = [
-            'function getVaultDetails(address,uint256,uint256) external view returns(bytes3,address,uint256,uint256,uint256,uint256,uint256)'
+            'function getVaultDetails(address,uint256,uint256) external view returns(bytes3,address,uint256,uint256,uint256,uint256,uint256,uint256)'
         ];
         const vaultUtilsContract = new ethers.Contract(
             BC_VAULT_UTILS_CONTRACT,
             vaultUtilsContractABI,
             signer
         );
-/*
-        const tabRegistryContractABI = [
-            'function frozenTabs(bytes32) external view returns(bool)'
-        ];
-        const tabRegistryContract = new ethers.Contract(
-            BC_TAB_REGISTRY_CONTRACT,
-            tabRegistryContractABI,
-            signer
-        );
-*/
+
+        // struct UpdatePriceData {
+        //     address signer;         // authorized price signer
+        //     address updater;        // user, usually vault owner
+        //     uint256 chainID;        // user chain id
+        //     bytes3 tab;
+        //     uint256 price;
+        //     uint256 timestamp;
+        //     uint8 v;
+        //     bytes32 r;
+        //     bytes32 s;
+        // }
         const vaultKeeperContractABI = [
-            'function checkVault(uint256,(address,uint256,bytes3,address,uint256,uint256,uint256),(uint256,uint256,address,address,address,bytes3,uint8,bytes32,bytes32)) external',
+            'function checkVault(uint256,(address,uint256,bytes3,address,uint256,uint256,uint256),(address,address,uint256,bytes3,uint256,uint256,uint8,bytes32,bytes32)) external',
             'function largestVaultDelta(address,uint256) external view returns(uint256)'
         ];
         const vaultKeeperContract = new ethers.Contract(
@@ -149,7 +133,7 @@ const checkVaultJob = async function(
             vaultKeeperContractABI,
             signer
         );
-
+    
         const ownerList = await vaultManagerContract.getOwnerList();
         console.log('ownerList length: '+ownerList.length);
 
@@ -178,7 +162,8 @@ const checkVaultJob = async function(
                     // uint256 reserveAmt,
                     // uint256 osTab,
                     // uint256 reserveValue,
-                    // uint256 minReserveValue
+                    // uint256 minReserveValue,
+                    // uint256 chainID
                 let det = await vaultUtilsContract.getVaultDetails(addr, id, 1); // dummy price value: 1
                 let strTab = ethers.toUtf8String(det[0]);
                 
@@ -198,22 +183,13 @@ const checkVaultJob = async function(
                 if (rates.data.quotes[pairName].tab.frozen == false) { // proceed checking only if vault tab is not frozen by protocol
                     let tab = det[0];
                     let reserveAddr = det[1];
-                    let reserveSymbol = getReserveSymbol(WRAPPED_BTC_RESERVES, reserveAddr);
-                    let price;
-                    if (reserveSymbol) {
-                        price = BigInt(getAdjustedWrappedBTCTokenPrice(
-                            rates.data.wrapped_BTC_tokens[reserveSymbol].median, 
-                            rates.data.quotes['BTCUSD'].median, 
-                            medianPriceRate.median
-                        ));
-                    }
-                    else
-                        price = BigInt(medianPriceRate.median);
+                    let price = BigInt(medianPriceRate.median);
                     let reserveAmt = BigInt(det[3]);
                     let osTab = BigInt(det[4]);
                     let reserveValue = calcReserveValue(price, reserveAmt);
                     let minReserveValue = BigInt(det[6]);
                     let delta = minReserveValue - reserveValue;
+                    let chainId = BigInt(det[7]);
                     console.log('tab: ' + strTab);
                     console.log('reserveAddr: ' + reserveAddr);
                     console.log('price: ' + price);
@@ -222,6 +198,7 @@ const checkVaultJob = async function(
                     console.log('reserveValue: ' + reserveValue);
                     console.log('minReserveValue: ' + minReserveValue);
                     console.log('delta: ' + delta + ' proceed checkValue? ' + (delta > 0) );
+                    console.log('chainId: ' + chainId);
                     
                     if (delta > 0 && reserveAmt > 0 && osTab > 0) { // delta value existed, call on-chain function 
                         // compare with on-chain largest delta (if any), if current delta is larger, submit it
@@ -229,7 +206,7 @@ const checkVaultJob = async function(
                         console.log('onChainLargestDelta: '+onChainLargestDelta);    
 
                         if (delta > onChainLargestDelta) {
-                            let sig = await getSignedRate(TAB_ORACLE, addr, strTab, reserveSymbol, reserveAddr);
+                            let sig = await getSignedRate(TAB_ORACLE, addr, strTab, chainId);
                             if (sig.error) {
                                 console.error("Failed to retrieve price rate signature on "+strTab);
                                 console.error(sig.error);
@@ -251,12 +228,12 @@ const checkVaultJob = async function(
                                     minReserveValue
                                 ],
                                 [
-                                    signed.price,
-                                    signed.timestamp,
-                                    signed.owner,
+                                    signed.signer,
                                     signed.updater,
-                                    signed.reserve,
+                                    signed.chainID,
                                     signed.tab,
+                                    BigInt(signed.price),
+                                    BigInt(signed.timestamp),
                                     signed.v,
                                     signed.r,
                                     signed.s
